@@ -19,6 +19,7 @@ class InferencePlay(arcade.Window):
         self.model = DQN(obs_dim, act_dim)
         self.model.load_state_dict(torch.load(model_path))
         self.model.eval()
+        self.steps = 0
 
         arcade.set_background_color(arcade.color.BLACK)
 
@@ -54,7 +55,7 @@ class InferencePlay(arcade.Window):
 
 def main():
     model_path = "saved_models/best.pt"  # or "models/last.pt"
-    env = TSPPlaneEnv(num_cities=3, frame_skip=0)
+    env = TSPPlaneEnv(num_cities=3, frame_skip=0, verbose=True)
     env.reset()
     window = InferencePlay(model_path, env)
     arcade.run()

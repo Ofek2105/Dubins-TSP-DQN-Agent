@@ -1,0 +1,6 @@
+torch
+arcade
+numpy
+gymnasium
+tqdm
+

@@ -1,6 +1,7 @@
 import arcade
 import math
 from RLenviroment import TSPPlaneEnv  # replace with your actual env filename
+import time
 
 WINDOW_SIZE = 600
 TURN_ANGLE = 15  # degrees
@@ -59,13 +60,14 @@ class HumanPlay(arcade.Window):
                 action = 2
 
         obs, reward, done, truncated, info = self.env.step(action)
-
+        time.sleep(0.08)
+        print(self.env.step_count)
         if done:
             print("Episode finished!")
             self.env.reset()
 
 def main():
-    env = TSPPlaneEnv(num_cities=3, frame_skip=0)
+    env = TSPPlaneEnv(num_cities=3, frame_skip=0, verbose=True)
     env.reset()
     window = HumanPlay(env)
     arcade.run()

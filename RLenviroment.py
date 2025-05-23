@@ -1,3 +1,5 @@
+from collections import deque
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -6,18 +8,20 @@ import math
 class TSPPlaneEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self, num_cities=5, frame_skip=0):
+    def __init__(self, num_cities=5, frame_skip=0, verbose=False, speed=0.01):
         super().__init__()
-
+        self.verbose = verbose
         self.num_cities = num_cities
         self.frame_skip = frame_skip
         self.TURN_ANGLE = 10  # degrees
-        self.SPACESHIP_SPEED = 0.01
+        self.SPACESHIP_SPEED = speed
         self.agent_angle = None
         self.action_space = spaces.Discrete(3)  # 0 = left, 1 = right, 2 = straight
+        self.last_actions = deque(maxlen=60)
+        self.step_count = None
 
         # Observation: [angle_to_city, distance_to_city] * K + heading + x + y
-        self.k_nearest = min(5, self.num_cities)
+        self.k_nearest = 5
         self.observation_space = spaces.Box(
             low=-1.0, high=1.0, shape=(2 * self.k_nearest + 3,), dtype=np.float32
         )
@@ -32,7 +36,7 @@ class TSPPlaneEnv(gym.Env):
         self.agent_position = np.random.rand(2)
         self.agent_angle = np.random.uniform(0, 360)
 
-        self.steps = 0
+        self.step_count = 0
         return self._get_obs(), {}
 
     def _closest_unvisited_distance(self):
@@ -50,6 +54,7 @@ class TSPPlaneEnv(gym.Env):
         )
 
     def step(self, action):
+        self.step_count += 1
         reward = 0.0
         prev_closest_dist = self._closest_unvisited_distance()
 
@@ -63,16 +68,31 @@ class TSPPlaneEnv(gym.Env):
             rad = math.radians(self.agent_angle)
             dx = self.SPACESHIP_SPEED * math.cos(rad)
             dy = self.SPACESHIP_SPEED * math.sin(rad)
-            self.agent_position += np.array([dx, dy])
-            self.agent_position = np.clip(self.agent_position, 0, 1)
+
+            new_position = self.agent_position + np.array([dx, dy])
+            clipped_position = np.clip(new_position, 0, 1)
+
+            if not np.allclose(new_position, clipped_position):
+                reward -= 3.0  # border penalty
+
+            # avoid circles
+            self.last_actions.append(action)
+            if list(self.last_actions).count(0) > 40 or list(self.last_actions).count(1) > 40:
+                reward -= 2.0
+
+            if action in [0, 1]:  # avoid general turning
+                reward -= 0.01
+
+            self.agent_position = clipped_position
 
             for i, city in enumerate(self.cities):
                 if not self.visited[i] and np.linalg.norm(self.agent_position - city) < 0.03:
                     self.visited[i] = True
-                    reward += 10.0
+                    reward += 5.0
 
         new_closest_dist = self._closest_unvisited_distance()
-        reward += (prev_closest_dist - new_closest_dist) * 2.0
+        dist_reward = (prev_closest_dist - new_closest_dist) * 5.0
+        reward += dist_reward
 
         if np.all(self.visited):
             done = True
@@ -80,9 +100,12 @@ class TSPPlaneEnv(gym.Env):
         else:
             done = False
             reward += -0.01 * (self.frame_skip + 1)
-            reward += 1.0 * np.sum(self.visited)
 
         obs = self._get_obs()
+
+        if self.verbose:
+            print(f"Reward: {reward}")
+
         return obs, reward, done, False, {}
 
     def _get_obs(self):

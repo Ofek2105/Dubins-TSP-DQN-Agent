@@ -39,6 +39,7 @@ def train(num_envs=8, total_timesteps=100_000, save_path='saved_models'):
         all_rewards += rewards
 
         for i in range(num_envs):
+            writer.add_scalar("Reward_AVG".format(i), np.mean(all_rewards), step)
             if dones[i]:
                 writer.add_scalar("Reward/Env_{}".format(i), all_rewards[i], step)
                 if all_rewards[i] > best_reward:

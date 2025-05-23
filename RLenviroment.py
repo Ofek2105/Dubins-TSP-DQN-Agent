@@ -35,7 +35,24 @@ class TSPPlaneEnv(gym.Env):
         self.steps = 0
         return self._get_obs(), {}
 
+    def _closest_unvisited_distance(self):
+        """
+        Returns the Euclidean distance from the agent's current position
+        to the closest unvisited city. If all cities have been visited,
+        returns 0.0.
+        """
+        if np.all(self.visited):
+            return 0.0
+        return min(
+            np.linalg.norm(self.agent_position - city)
+            for i, city in enumerate(self.cities)
+            if not self.visited[i]
+        )
+
     def step(self, action):
+        reward = 0.0
+        prev_closest_dist = self._closest_unvisited_distance()
+
         for _ in range(self.frame_skip + 1):
             if action == 0:
                 self.agent_angle += self.TURN_ANGLE
@@ -52,11 +69,14 @@ class TSPPlaneEnv(gym.Env):
             for i, city in enumerate(self.cities):
                 if not self.visited[i] and np.linalg.norm(self.agent_position - city) < 0.03:
                     self.visited[i] = True
+                    reward += 10.0
 
-        reward = 0.0
+        new_closest_dist = self._closest_unvisited_distance()
+        reward += (prev_closest_dist - new_closest_dist) * 2.0
+
         if np.all(self.visited):
             done = True
-            reward += 100.0
+            reward += 20.0
         else:
             done = False
             reward += -0.01 * (self.frame_skip + 1)

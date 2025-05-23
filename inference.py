@@ -1,42 +1,63 @@
+# inference.py
 import torch
-import numpy as np
+import arcade
+import math
 from dqn_model import DQN
 from RLenviroment import TSPPlaneEnv
-import argparse
 
-def load_model(path, obs_dim, act_dim):
-    model = DQN(obs_dim, act_dim)
-    model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
-    model.eval()
-    return model
+WINDOW_SIZE = 600
 
-def run_inference(model_path, num_episodes=10):
-    env = TSPPlaneEnv(num_cities=3)
-    obs_dim = env.observation_space.shape[0]
-    act_dim = env.action_space.n
+class InferencePlay(arcade.Window):
+    def __init__(self, model_path, env):
+        super().__init__(WINDOW_SIZE, WINDOW_SIZE, "TSP Plane - Inference Play")
+        self.env = env
+        self.obs, _ = self.env.reset()
+        self.done = False
 
-    model = load_model(model_path, obs_dim, act_dim)
+        obs_dim = self.env.observation_space.shape[0]
+        act_dim = self.env.action_space.n
+        self.model = DQN(obs_dim, act_dim)
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.eval()
 
-    for ep in range(num_episodes):
-        obs, _ = env.reset()
-        done = False
-        total_reward = 0
-        steps = 0
+        arcade.set_background_color(arcade.color.BLACK)
 
-        while not done:
-            obs_tensor = torch.tensor([obs], dtype=torch.float32)
-            with torch.no_grad():
-                action = model(obs_tensor).argmax().item()
-            obs, reward, done, _, _ = env.step(action)
-            total_reward += reward
-            steps += 1
+    def on_draw(self):
+        arcade.start_render()
 
-        print(f"Episode {ep+1}: Total reward = {total_reward}, Steps = {steps}")
+        for i, city in enumerate(self.env.cities):
+            x = city[0] * WINDOW_SIZE
+            y = city[1] * WINDOW_SIZE
+            color = arcade.color.GREEN if self.env.visited[i] else arcade.color.RED
+            arcade.draw_circle_filled(x, y, 6, color)
+
+        x = self.env.agent_position[0] * WINDOW_SIZE
+        y = self.env.agent_position[1] * WINDOW_SIZE
+        arcade.draw_circle_filled(x, y, 10, arcade.color.BLUE)
+
+        angle_rad = math.radians(self.env.agent_angle)
+        dx = 20 * math.cos(angle_rad)
+        dy = 20 * math.sin(angle_rad)
+        arcade.draw_line(x, y, x + dx, y + dy, arcade.color.WHITE, 2)
+
+    def on_update(self, delta_time):
+        if self.done:
+            self.obs, _ = self.env.reset()
+            self.done = False
+            return
+
+        with torch.no_grad():
+            obs_tensor = torch.tensor(self.obs, dtype=torch.float32).unsqueeze(0)
+            action = self.model(obs_tensor).argmax(dim=1).item()
+
+        self.obs, reward, self.done, truncated, info = self.env.step(action)
+
+def main():
+    model_path = "saved_models/best.pt"  # or "models/last.pt"
+    env = TSPPlaneEnv(num_cities=3, frame_skip=0)
+    env.reset()
+    window = InferencePlay(model_path, env)
+    arcade.run()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default=r'models/best.pt', help="Path to the saved .pt model file")
-    parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to run")
-    args = parser.parse_args()
-
-    run_inference(args.model, args.episodes)
+    main()

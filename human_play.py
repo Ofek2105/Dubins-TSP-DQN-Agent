@@ -61,12 +61,13 @@ class HumanPlay(arcade.Window):
 
         obs, reward, done, truncated, info = self.env.step(action)
         print(self.env.step_count)
+        time.sleep(0.1)
         if done:
             print("Episode finished!")
             self.env.reset()
 
 def main():
-    env = TSPPlaneEnv(num_cities=5, frame_skip=0, verbose=True, max_steps=500, speed=0.008, angle_turn=20)
+    env = TSPPlaneEnv(num_cities=5, frame_skip=0, verbose=True, max_steps=1500, speed=0.002, angle_turn=5)
     env.reset()
     window = HumanPlay(env)
     arcade.run()

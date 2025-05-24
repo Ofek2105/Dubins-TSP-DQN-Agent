@@ -3,7 +3,8 @@
 
 ### Example
 
-![](README_assets/inference_play.gif)
+[//]: # (![]&#40;README_assets/inference_play.gif&#41;)
+<img src="README_assets/inference_play.gif" alt="Inference Demo" width="50%"/>
 
 ### Explanation 
 

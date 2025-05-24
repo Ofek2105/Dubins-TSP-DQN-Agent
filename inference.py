@@ -54,8 +54,8 @@ class InferencePlay(arcade.Window):
         self.obs, reward, self.done, truncated, info = self.env.step(action)
 
 def main():
-    model_path = "saved_models/best.pt"  # or "models/last.pt"
-    env = TSPPlaneEnv(num_cities=3, frame_skip=0, verbose=True)
+    model_path = "saved_models/last.pt"  # or "models/last.pt"
+    env = TSPPlaneEnv(num_cities=5, frame_skip=0, verbose=True)
     env.reset()
     window = InferencePlay(model_path, env)
     arcade.run()

@@ -15,9 +15,9 @@ analogous to the **Traveling Salesman Problem (TSP)**.
 The Agent is subject to airplane-like motion constraints.
 The agent:
 
-- Moves at a constant speed and cannot stop or reverse,
-- Has a limited turning rate, resembling a Dubins vehicle (non-holonomic motion), 
-- Observes distances and angles to the remaining targets,
+- Moves at a constant speed and cannot stop or reverse
+- Has a limited turning rate, resembling a Dubins vehicle (non-holonomic motion) 
+- Observes distances and angles to the remaining targets
 
 ### Reward Engineering:
 

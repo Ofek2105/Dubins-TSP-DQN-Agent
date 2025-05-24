@@ -8,16 +8,20 @@ import math
 class TSPPlaneEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 30}
 
-    def __init__(self, num_cities=5, frame_skip=0, verbose=False, speed=0.01):
+    def __init__(self, num_cities=5, frame_skip=0, verbose=False, speed=0.008, max_steps=1000, angle_turn=20):
         super().__init__()
+        self.max_steps = max_steps
         self.verbose = verbose
         self.num_cities = num_cities
         self.frame_skip = frame_skip
-        self.TURN_ANGLE = 10  # degrees
+        self.TURN_ANGLE = angle_turn  # degrees
         self.SPACESHIP_SPEED = speed
         self.agent_angle = None
         self.action_space = spaces.Discrete(3)  # 0 = left, 1 = right, 2 = straight
-        self.last_actions = deque(maxlen=60)
+        self.last_actions = deque(maxlen=50)
+        self.LAST_ACTION_MOMENTUM = 40
+
+
         self.step_count = None
 
         # Observation: [angle_to_city, distance_to_city] * K + heading + x + y
@@ -77,11 +81,12 @@ class TSPPlaneEnv(gym.Env):
 
             # avoid circles
             self.last_actions.append(action)
-            if list(self.last_actions).count(0) > 40 or list(self.last_actions).count(1) > 40:
-                reward -= 2.0
+            if (list(self.last_actions).count(0) > self.LAST_ACTION_MOMENTUM
+                    or list(self.last_actions).count(1) > self.LAST_ACTION_MOMENTUM):
+                reward -= 10.0
 
             if action in [0, 1]:  # avoid general turning
-                reward -= 0.01
+                reward -= 0.05
 
             self.agent_position = clipped_position
 
@@ -102,9 +107,11 @@ class TSPPlaneEnv(gym.Env):
             reward += -0.01 * (self.frame_skip + 1)
 
         obs = self._get_obs()
-
         if self.verbose:
             print(f"Reward: {reward}")
+
+        if self.step_count >= self.max_steps:
+            done = True
 
         return obs, reward, done, False, {}
 

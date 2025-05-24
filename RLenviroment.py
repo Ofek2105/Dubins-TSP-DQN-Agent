@@ -39,6 +39,7 @@ class TSPPlaneEnv(gym.Env):
 
         self.agent_position = np.random.rand(2)
         self.agent_angle = np.random.uniform(0, 360)
+        self.nearest_city = None
 
         self.step_count = 0
         return self._get_obs(), {}
@@ -83,11 +84,12 @@ class TSPPlaneEnv(gym.Env):
             self.last_actions.append(action)
             if (list(self.last_actions).count(0) > self.LAST_ACTION_MOMENTUM
                     or list(self.last_actions).count(1) > self.LAST_ACTION_MOMENTUM):
-                reward -= 10.0
+                reward += -10.0
 
             if action in [0, 1]:  # avoid general turning
-                reward -= 0.05
+                reward += -0.05
 
+            reward += self._angle_penalty()
             self.agent_position = clipped_position
 
             for i, city in enumerate(self.cities):
@@ -115,6 +117,20 @@ class TSPPlaneEnv(gym.Env):
 
         return obs, reward, done, False, {}
 
+
+    def _angle_penalty(self):
+        if np.all(self.visited):
+            return 0.0  # no penalty if all cities are visited
+
+        vec_to_nearest = self.nearest_city - self.agent_position
+        deg_to_nearest = np.degrees(np.arctan2(vec_to_nearest[1], vec_to_nearest[0]))
+
+        angle_diff = (deg_to_nearest - self.agent_angle + 180) % 360 - 180 # Relative angle to the target (in [-180, 180])
+        norm_angle_diff = abs(angle_diff) / 180.0  # normalized: 0 = aligned, 1 = opposite
+
+        penalty = -norm_angle_diff ** 2
+        return penalty
+
     def _get_obs(self):
         unvisited = self.cities[~self.visited]
         if len(unvisited) == 0:
@@ -123,6 +139,7 @@ class TSPPlaneEnv(gym.Env):
             dists = np.linalg.norm(unvisited - self.agent_position, axis=1)
             idxs = np.argsort(dists)[:self.k_nearest]
             nearest = unvisited[idxs]
+            self.nearest_city = nearest[0]
             rel = nearest - self.agent_position
 
             angles_norm = self._get_rel_norm_deg(rel)

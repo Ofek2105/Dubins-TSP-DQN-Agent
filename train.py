@@ -9,15 +9,24 @@ from tqdm import tqdm
 
 from RLenviroment import TSPPlaneEnv
 
-def make_env(num_cities_=3):
+def make_env(num_cities_=3, max_steps=500):
     def thunk():
-        return TSPPlaneEnv(num_cities=num_cities_)
+        return TSPPlaneEnv(num_cities=num_cities_, max_steps=500)
     return thunk
 
-def train(num_envs=8, total_timesteps=100_000, save_path='saved_models'):
-    os.makedirs(save_path, exist_ok=True)
+def train(num_envs=8, total_timesteps=200_000, save_pt_path='saved_models'):
+    os.makedirs(save_pt_path, exist_ok=True)
 
-    envs = AsyncVectorEnv([make_env(num_cities_=3) for _ in range(num_envs)])
+    env_list = [make_env(num_cities_=3, max_steps=500),
+                make_env(num_cities_=5, max_steps=500),
+                make_env(num_cities_=10, max_steps=700),
+                make_env(num_cities_=5, max_steps=300),
+                make_env(num_cities_=2, max_steps=500),
+                make_env(num_cities_=1, max_steps=200),
+                make_env(num_cities_=5, max_steps=200),
+                make_env(num_cities_=8, max_steps=500)]
+
+    envs = AsyncVectorEnv(env_list)
     obs_space = envs.single_observation_space.shape[0]
     action_space = envs.single_action_space.n
 
@@ -38,18 +47,18 @@ def train(num_envs=8, total_timesteps=100_000, save_path='saved_models'):
 
         all_rewards += rewards
 
+        # writer.add_scalar("Reward_AVG", np.mean(all_rewards), step)
         for i in range(num_envs):
-            writer.add_scalar("Reward_AVG".format(i), np.mean(all_rewards), step)
             if dones[i]:
                 writer.add_scalar("Reward/Env_{}".format(i), all_rewards[i], step)
                 if all_rewards[i] > best_reward:
                     best_reward = all_rewards[i]
-                    torch.save(agent.model.state_dict(), os.path.join(save_path, "best.pt"))
+                    torch.save(agent.model.state_dict(), os.path.join(save_pt_path, "best.pt"))
                 all_rewards[i] = 0
 
         obs = next_obs
 
-    torch.save(agent.model.state_dict(), os.path.join(save_path, "last.pt"))
+    torch.save(agent.model.state_dict(), os.path.join(save_pt_path, "last.pt"))
     envs.close()
 
 if __name__ == "__main__":
